@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>可分享盲抽工具（支持删奖品）</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", sans-serif;
+        }
+        body {
+            background-color: #f5f7fa;
+            padding: 20px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 30px;
+        }
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            color: white;
+            cursor: pointer;
+            margin-bottom: 15px;
+            touch-action: manipulation;
+        }
+        .lottery-btn {
+            background-color: #409eff;
+        }
+        .lottery-btn:disabled {
+            background-color: #c0c4cc;
+            cursor: not-allowed;
+        }
+        .admin-btn {
+            background-color: #67c23a;
+        }
+        .result-box {
+            margin-top: 20px;
+            padding: 20px;
+            border: 2px dashed #409eff;
+            border-radius: 8px;
+            text-align: center;
+            display: none;
+        }
+        .result-title {
+            font-size: 20px;
+            color: #e6a23c;
+            margin-bottom: 10px;
+        }
+        .result-content {
+            font-size: 18px;
+            color: #333;
+        }
+        .admin-panel {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        .admin-input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .admin-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .admin-row input {
+            flex: 1;
+        }
+        .admin-sub-btn {
+            background-color: #f56c6c;
+        }
+        .record-box {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f0f9ff;
+            border-radius: 8px;
+            display: none;
+        }
+        .record-title {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .record-list {
+            font-size: 14px;
+            color: #666;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .tip-text {
+            text-align: center;
+            font-size: 14px;
+            color: #999;
+            margin-top: 15px;
+        }
+        .prize-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            background-color: #fef7e5;
+            border-radius: 4px;
+            margin-bottom: 6px;
+        }
+        .prize-item span {
+            font-size: 14px;
+            color: #666;
+        }
+        .prize-del-btn {
+            padding: 4px 8px;
+            font-size: 12px;
+            background-color: #ff4949;
+            color: white;
+            border: none;
+            border-radius: 2px;
+            cursor: pointer;
+        }
+        .prize-list-box {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>可分享每日盲抽（支持删奖品）</h1>
+        <button class="btn lottery-btn" id="lotteryBtn">点击抽奖</button>
+        <div class="result-box" id="resultBox">
+            <div class="result-title">恭喜你抽中！</div>
+            <div class="result-content" id="resultContent"></div>
+        </div>
+        <div class="tip-text" id="tipText"></div>
+
+        <button class="btn admin-btn" id="adminBtn">管理员入口</button>
+        <div class="admin-panel" id="adminPanel">
+            <input type="password" class="admin-input" id="adminPwd" placeholder="请输入管理员密码">
+            <button class="btn admin-sub-btn" id="checkPwdBtn">验证密码</button>
+            
+            <div style="margin-top: 20px; display: none;" id="adminFunc">
+                <div class="admin-row">
+                    <input type="text" class="admin-input" id="prizeName" placeholder="奖品名称">
+                    <input type="number" class="admin-input" id="prizeRate" placeholder="权重(越大概率越高)" min="1">
+                </div>
+                <button class="btn admin-sub-btn" id="addPrizeBtn">添加奖品（含概率）</button>
+                
+                <div class="prize-list-box" id="prizeListBox">
+                    <div class="tip-text" style="margin-top: 0;">当前奖池为空</div>
+                </div>
+
+                <button class="btn admin-sub-btn" id="changePwdBtn" style="margin-top: 15px;">修改管理员密码</button>
+                <button class="btn admin-sub-btn" id="viewRecordBtn">查看中奖记录</button>
+            </div>
+        </div>
+
+        <div class="record-box" id="recordBox">
+            <div class="record-title">中奖记录</div>
+            <div class="record-list" id="recordList"></div>
+        </div>
+    </div>
+
+    <script>
+        // 本地存储键名（独立命名空间，避免冲突）
+        const KEY_PRIZE = 'share_lottery_prize';
+        const KEY_RECORD = 'share_lottery_record';
+        const KEY_ADMIN_PWD = 'share_lottery_pwd';
+        const KEY_USER_LOTTERY_DATE = 'share_lottery_date';
+
+        // 初始化数据 奖品格式: {id: 唯一标识, name: 名称, rate: 权重}
+        function initData() {
+            if (!localStorage.getItem(KEY_PRIZE)) localStorage.setItem(KEY_PRIZE, JSON.stringify([]));
+            if (!localStorage.getItem(KEY_RECORD)) localStorage.setItem(KEY_RECORD, JSON.stringify([]));
+            if (!localStorage.getItem(KEY_ADMIN_PWD)) localStorage.setItem(KEY_ADMIN_PWD, 'admin123');
+        }
+        initData();
+
+        let prizeList = JSON.parse(localStorage.getItem(KEY_PRIZE));
+        let recordList = JSON.parse(localStorage.getItem(KEY_RECORD));
+        let adminPwd = localStorage.getItem(KEY_ADMIN_PWD);
+
+        // DOM元素
+        const lotteryBtn = document.getElementById('lotteryBtn');
+        const resultBox = document.getElementById('resultBox');
+        const resultContent = document.getElementById('resultContent');
+        const tipText = document.getElementById('tipText');
+        const adminBtn = document.getElementById('adminBtn');
+        const adminPanel = document.getElementById('adminPanel');
+        const adminPwdInput = document.getElementById('adminPwd');
+        const checkPwdBtn = document.getElementById('checkPwdBtn');
+        const adminFunc = document.getElementById('adminFunc');
+        const prizeNameInput = document.getElementById('prizeName');
+        const prizeRateInput = document.getElementById('prizeRate');
+        const addPrizeBtn = document.getElementById('addPrizeBtn');
+        const prizeListBox = document.getElementById('prizeListBox');
+        const changePwdBtn = document.getElementById('changePwdBtn');
+        const viewRecordBtn = document.getElementById('viewRecordBtn');
+        const recordBox = document.getElementById('recordBox');
+        const recordListEl = document.getElementById('recordList');
+
+        // 生成唯一ID
+        function generateId() {
+            return Date.now() + Math.floor(Math.random() * 1000);
+        }
+
+        // 更新奖池显示（带删除按钮）
+        function updatePrizeDisplay() {
+            if (prizeList.length === 0) {
+                prizeListBox.innerHTML = '<div class="tip-text" style="margin-top: 0;">当前奖池为空</div>';
+                return;
+            }
+            prizeListBox.innerHTML = prizeList.map(item => `
+                <div class="prize-item">
+                    <span>${item.name} - 权重: ${item.rate}</span>
+                    <button class="prize-del-btn" data-id="${item.id}">删除</button>
+                </div>
+            `).join('');
+            // 绑定删除事件
+            document.querySelectorAll('.prize-del-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const id = parseInt(this.dataset.id);
+                    prizeList = prizeList.filter(item => item.id !== id);
+                    localStorage.setItem(KEY_PRIZE, JSON.stringify(prizeList));
+                    updatePrizeDisplay();
+                    tipText.textContent = '奖品删除成功！';
+                });
+            });
+        }
+
+        // 日期校验 每日限抽1次
+        function checkTodayLottery() {
+            const today = new Date().toLocaleDateString();
+            const lastDate = localStorage.getItem(KEY_USER_LOTTERY_DATE);
+            return lastDate === today;
+        }
+
+        // 权重抽奖算法
+        function randomPrize() {
+            const totalRate = prizeList.reduce((sum, item) => sum + item.rate, 0);
+            let randomNum = Math.random() * totalRate;
+            for (let item of prizeList) {
+                randomNum -= item.rate;
+                if (randomNum <= 0) return item.name;
+            }
+            return prizeList[0]?.name || '无奖品';
+        }
+
+        // 抽奖逻辑
+        lotteryBtn.addEventListener('click', () => {
+            if (checkTodayLottery()) {
+                tipText.textContent = '今日抽奖次数已用完，明天再来吧！';
+                return;
+            }
+            if (prizeList.length === 0) {
+                tipText.textContent = '奖池为空，请联系管理员添加奖品！';
+                return;
+            }
+            const prize = randomPrize();
+            resultContent.textContent = prize;
+            resultBox.style.display = 'block';
+            tipText.textContent = '';
+            // 记录抽奖信息
+            const today = new Date().toLocaleDateString();
+            const time = new Date().toLocaleTimeString();
+            localStorage.setItem(KEY_USER_LOTTERY_DATE, today);
+            recordList.push({ date: today, time: time, prize: prize });
+            localStorage.setItem(KEY_RECORD, JSON.stringify(recordList));
+            lotteryBtn.disabled = true;
+        });
+
+        // 管理员入口切换
+        adminBtn.addEventListener('click', () => {
+            adminPanel.style.display = adminPanel.style.display === 'block' ? 'none' : 'block';
+        });
+
+        // 管理员密码验证
+        checkPwdBtn.addEventListener('click', () => {
+            const inputPwd = adminPwdInput.value.trim();
+            if (inputPwd === adminPwd) {
+                adminFunc.style.display = 'block';
+                updatePrizeDisplay();
+                tipText.textContent = '密码验证成功！';
+            } else {
+                tipText.textContent = '密码错误，请重试！';
+                adminFunc.style.display = 'none';
+            }
+        });
+
+        // 添加带概率的奖品（上限50个）
+        addPrizeBtn.addEventListener('click', () => {
+            const name = prizeNameInput.value.trim();
+            const rate = parseInt(prizeRateInput.value.trim());
+            if (!name || isNaN(rate) || rate < 1) {
+                tipText.textContent = '奖品名称不能为空，权重需为正整数！';
+                return;
+            }
+            if (prizeList.length >= 50) {
+                tipText.textContent = '奖池已达上限50个，无法新增！';
+                return;
+            }
+            prizeList.push({ id: generateId(), name, rate });
+            localStorage.setItem(KEY_PRIZE, JSON.stringify(prizeList));
+            prizeNameInput.value = '';
+            prizeRateInput.value = '';
+            updatePrizeDisplay();
+            tipText.textContent = `奖品添加成功！当前奖池数量：${prizeList.length}`;
+        });
+
+        // 修改管理员密码
+        changePwdBtn.addEventListener('click', () => {
+            const newPwd = prompt('请输入新的管理员密码：');
+            if (!newPwd) {
+                tipText.textContent = '密码不能为空！';
+                return;
+            }
+            localStorage.setItem(KEY_ADMIN_PWD, newPwd);
+            adminPwd = newPwd;
+            tipText.textContent = '密码修改成功，请牢记新密码！';
+        });
+
+        // 查看中奖记录
+        viewRecordBtn.addEventListener('click', () => {
+            if (recordList.length === 0) {
+                recordListEl.textContent = '暂无中奖记录';
+            } else {
+                recordListEl.innerHTML = recordList.map(item => 
+                    `[${item.date} ${item.time}] 抽中：${item.prize}`
+                ).join('<br>');
+            }
+            recordBox.style.display = 'block';
+        });
+
+        // 页面加载校验
+        window.onload = () => {
+            if (checkTodayLottery()) {
+                lotteryBtn.disabled = true;
+                tipText.textContent = '今日抽奖次数已用完，明天再来吧！';
+            }
+        };
+    </script>
+</body>
+</html>
+
